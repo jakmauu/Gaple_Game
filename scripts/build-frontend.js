@@ -15,9 +15,8 @@ if (!fs.existsSync(PUBLIC_DIR)) {
   throw new Error(`Public directory not found: ${PUBLIC_DIR}`);
 }
 
-fs.rmSync(DIST_DIR, { recursive: true, force: true });
 fs.mkdirSync(DIST_DIR, { recursive: true });
-fs.cpSync(PUBLIC_DIR, DIST_DIR, { recursive: true });
+copyDirectory(PUBLIC_DIR, DIST_DIR);
 
 fs.writeFileSync(
   path.join(DIST_DIR, "config.js"),
@@ -30,4 +29,19 @@ console.log(`GAPLE_API_BASE_URL=${apiBaseUrl || "(same origin)"}`);
 
 function normalizeApiBaseUrl(value) {
   return String(value || "").trim().replace(/\/+$/, "");
+}
+
+function copyDirectory(sourceDir, targetDir) {
+  fs.mkdirSync(targetDir, { recursive: true });
+  for (const entry of fs.readdirSync(sourceDir, { withFileTypes: true })) {
+    const sourcePath = path.join(sourceDir, entry.name);
+    const targetPath = path.join(targetDir, entry.name);
+    if (entry.isDirectory()) {
+      copyDirectory(sourcePath, targetPath);
+      continue;
+    }
+    if (entry.isFile()) {
+      fs.writeFileSync(targetPath, fs.readFileSync(sourcePath));
+    }
+  }
 }

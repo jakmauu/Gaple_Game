@@ -82,6 +82,8 @@ Catatan: room/game state masih disimpan di memory backend. Pakai satu instance b
 
 Untuk main cepat, buat room lalu klik `Solo + AI Partner`. Untuk 2 manusia, player pertama buat room dan partner join memakai link invite.
 
+Tombol `Keluar` bisa dipakai saat menunggu, saat game berjalan, setelah ronde selesai, atau setelah game selesai. Kalau player keluar saat game masih berjalan, seat-nya otomatis diambil alih bot supaya room tidak macet.
+
 ## Konfigurasi AI
 
 Default bot menjalankan 300 playout Monte Carlo per kandidat move.

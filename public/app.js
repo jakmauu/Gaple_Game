@@ -23,6 +23,7 @@ const els = {
   playerHand: $("playerHand"),
   turnHint: $("turnHint"),
   copyInviteBtn: $("copyInviteBtn"),
+  leaveRoomBtn: $("leaveRoomBtn"),
   startBtn: $("startBtn"),
   startSoloBtn: $("startSoloBtn"),
   placeLeftBtn: $("placeLeftBtn"),
@@ -87,6 +88,7 @@ function bootstrap() {
   els.startBtn.addEventListener("click", () => startGame(false));
   els.startSoloBtn.addEventListener("click", () => startGame(true));
   els.copyInviteBtn.addEventListener("click", copyInvite);
+  els.leaveRoomBtn.addEventListener("click", leaveGame);
   els.placeLeftBtn.addEventListener("click", () => playSelectedSide("left"));
   els.placeRightBtn.addEventListener("click", () => playSelectedSide("right"));
   els.passBtn.addEventListener("click", passTurn);
@@ -208,6 +210,36 @@ async function passTurn() {
   } catch (error) {
     toast(error.message || "PASS ditolak server.");
   }
+}
+
+async function leaveGame() {
+  if (!app.roomId || !app.token) {
+    returnToLobby();
+    return;
+  }
+
+  if (app.state?.status === "playing") {
+    const confirmed = window.confirm("Keluar dari game? Seat kamu akan diambil alih bot supaya game tidak macet.");
+    if (!confirmed) return;
+  }
+
+  const roomId = app.roomId;
+  const token = app.token;
+  if (app.events) {
+    app.events.close();
+    app.events = null;
+  }
+
+  try {
+    await api(`/api/rooms/${roomId}/leave`, {
+      method: "POST",
+      body: { token }
+    });
+  } catch {
+    // Tetap keluar dari layar lokal kalau room sudah hilang atau token kedaluwarsa.
+  }
+
+  returnToLobby("Kamu sudah keluar dari game.");
 }
 
 function connectEvents() {
@@ -844,6 +876,30 @@ async function copyInvite() {
 function showGame() {
   els.lobbyPanel.classList.add("hidden");
   els.gamePanel.classList.remove("hidden");
+}
+
+function returnToLobby(message = "") {
+  if (app.events) {
+    app.events.close();
+    app.events = null;
+  }
+
+  clearSession();
+  app.roomId = null;
+  app.token = null;
+  app.seat = null;
+  app.state = null;
+  app.selectedTileId = null;
+  app.lastAnimatedMoveKey = null;
+  app.lastDealRound = 0;
+  app.lastRevealKey = null;
+  app.scoreHoldKey = null;
+  app.scoreHoldUntil = 0;
+  els.roomCode.value = "";
+  els.gamePanel.classList.add("hidden");
+  els.lobbyPanel.classList.remove("hidden");
+  history.replaceState(null, "", window.location.pathname);
+  if (message) toast(message);
 }
 
 function toast(message) {

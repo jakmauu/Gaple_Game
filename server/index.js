@@ -143,6 +143,19 @@ async function handleApi(req, res, url) {
     return sendJson(res, 200, { ok: true, state: publicStateFor(room, token) });
   }
 
+  if (req.method === "POST" && parts[3] === "leave") {
+    const body = await readJsonBody(req);
+    const token = getBearerOrBodyToken(req, body);
+    const result = leaveRoom(room, token);
+    if (!result.ok) return sendJson(res, 200, { ok: true, left: false });
+    if (!result.deleted) {
+      broadcast(room);
+      if (room.game.status === "roundOver") scheduleNextRound(room);
+      scheduleBotIfNeeded(room);
+    }
+    return sendJson(res, 200, { ok: true, left: true, deleted: result.deleted });
+  }
+
   if (req.method === "POST" && parts[3] === "next-round") {
     const body = await readJsonBody(req);
     const token = getBearerOrBodyToken(req, body);
@@ -229,6 +242,44 @@ function joinRoom(room, body = {}) {
   return { roomId: room.id, token, seat };
 }
 
+function leaveRoom(room, token) {
+  const player = room.playersByToken.get(token);
+  if (!player) return { ok: false };
+
+  const seat = player.seat;
+  const previousSeat = room.game.seats[seat];
+  const name = player.name || previousSeat?.name || `Seat ${seat}`;
+
+  room.playersByToken.delete(token);
+  closeClientResponses(room, token);
+
+  if (room.game.status === "waiting") {
+    engine.setSeat(room.game, seat, {
+      name: previousSeat?.label || (seat === 0 ? "User" : "Partner"),
+      type: "open",
+      connected: false
+    });
+    engine.addLog(room.game, `${name} keluar dari room. Seat ${seat} kosong lagi.`, "room");
+  } else if (room.game.status === "gameOver") {
+    engine.setSeat(room.game, seat, { connected: false });
+    engine.addLog(room.game, `${name} keluar setelah game selesai.`, "room");
+  } else {
+    engine.setSeat(room.game, seat, {
+      name: seat === 0 ? "Bot Pengganti Bawah" : "Bot Pengganti Atas",
+      type: "bot",
+      connected: true
+    });
+    engine.addLog(room.game, `${name} keluar. Seat ${seat} diambil alih bot agar game tetap lanjut.`, "room");
+  }
+
+  if (room.playersByToken.size === 0) {
+    closeRoom(room);
+    return { ok: true, deleted: true };
+  }
+
+  return { ok: true, deleted: false };
+}
+
 function fillAiPartner(room) {
   if (room.game.seats[2].type !== "human") {
     engine.setSeat(room.game, 2, { name: "Partner AI", type: "bot", connected: true });
@@ -303,6 +354,24 @@ function broadcast(room) {
       res.write(`data: ${payload}\n\n`);
     }
   }
+}
+
+function closeClientResponses(room, token) {
+  const responses = room.clients.get(token);
+  if (!responses) return;
+  for (const res of responses) {
+    res.end();
+  }
+  room.clients.delete(token);
+}
+
+function closeRoom(room) {
+  if (room.botTimer) clearTimeout(room.botTimer);
+  if (room.nextRoundTimer) clearTimeout(room.nextRoundTimer);
+  for (const token of room.clients.keys()) {
+    closeClientResponses(room, token);
+  }
+  rooms.delete(room.id);
 }
 
 function handleEvents(req, res, url) {
