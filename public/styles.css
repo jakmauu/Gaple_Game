@@ -586,7 +586,11 @@ h1 {
   cursor: default;
   pointer-events: none;
   border-radius: 0.2rem;
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.32), inset 0 0 0 2px rgba(255, 255, 255, 0.5);
+  box-shadow: none;
+}
+
+.board-domino .domino-img {
+  filter: drop-shadow(0 5px 5px rgba(0, 0, 0, 0.36));
 }
 
 .board-domino.vertical {
@@ -804,6 +808,34 @@ h1 {
   animation: tileIn 280ms ease both;
 }
 
+.asset-domino {
+  display: block;
+  border: 0;
+  overflow: visible;
+  background: transparent;
+  box-shadow: none;
+}
+
+.asset-domino .domino-img {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  display: block;
+  width: var(--tile-w);
+  height: var(--tile-h);
+  object-fit: fill;
+  pointer-events: none;
+  user-select: none;
+  transform: translate(-50%, -50%) rotate(var(--asset-rotation, 0deg));
+  transform-origin: center;
+  filter: drop-shadow(0 10px 13px rgba(0, 0, 0, 0.28));
+}
+
+.asset-domino.horizontal .domino-img {
+  width: var(--tile-h);
+  height: var(--tile-w);
+}
+
 .domino.horizontal {
   --tile-w: 92px;
   --tile-h: 46px;
@@ -814,14 +846,14 @@ h1 {
 .domino.playable {
   --domino-border: #9f1d1d;
   cursor: pointer;
-  box-shadow: 0 14px 26px rgba(0, 0, 0, 0.3), 0 0 0 2px rgba(126, 226, 168, 0.72);
+  box-shadow: 0 0 0 2px rgba(126, 226, 168, 0.78);
 }
 
 .domino.playable:hover,
 .domino.selected {
   --domino-border: #d62525;
   transform: translateY(-8px);
-  box-shadow: 0 22px 36px rgba(0, 0, 0, 0.34), 0 0 0 3px rgba(248, 200, 106, 0.9);
+  box-shadow: 0 0 0 3px rgba(248, 200, 106, 0.95);
 }
 
 .opponent-fly-ghost {
@@ -1487,7 +1519,11 @@ h1 {
   }
 
   .board-domino {
-    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.26), inset 0 0 0 1px rgba(255, 255, 255, 0.68);
+    box-shadow: none;
+  }
+
+  .board-domino .domino-img {
+    filter: drop-shadow(0 3px 3px rgba(0, 0, 0, 0.34));
   }
 
   .hand-dock {

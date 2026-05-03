@@ -41,17 +41,8 @@ const els = {
   toast: $("toast")
 };
 
-const PIP_POSITIONS = {
-  0: [],
-  1: [4],
-  2: [0, 8],
-  3: [0, 4, 8],
-  4: [0, 2, 6, 8],
-  5: [0, 2, 4, 6, 8],
-  6: [0, 2, 3, 5, 6, 8]
-};
-
 const API_BASE_URL = normalizeApiBaseUrl(window.GAPLE_API_BASE_URL || "");
+const DOMINO_ASSET_DIR = "/assets/domino";
 
 const app = {
   roomId: null,
@@ -573,56 +564,50 @@ function calculateBoardLayout(chain, container) {
 }
 
 function calculateMobileSnakeLayout(chain, width, height, cssSquare, cssGap) {
-  const maxSquare = Math.min(cssSquare, 26);
-  const minSquare = 10;
-  const margin = 6;
+  const maxSquare = Math.min(cssSquare, 24);
+  const minSquare = 9;
+  const margin = 8;
   let best = null;
 
   for (let square = maxSquare; square >= minSquare; square -= 1) {
-    const maxRun = Math.max(3, Math.floor((width - margin * 2 + cssGap) / ((square * 2) + cssGap)));
+    const gap = Math.max(cssGap, Math.round(square * 0.18));
+    const maxRowTiles = Math.max(3, Math.floor((width - margin * 2 + gap) / ((square * 2) + gap)));
+    const maxRun = Math.max(2, maxRowTiles - 1);
     for (let run = Math.min(9, maxRun); run >= 3; run -= 1) {
-      const candidate = buildCenteredMobileSnake(chain, width, height, square, cssGap, margin, run);
-      if (!best || candidate.overflow < best.overflow || (candidate.overflow === best.overflow && candidate.square > best.square)) {
-        best = candidate;
+      for (let drop = 5; drop >= 2; drop -= 1) {
+        const candidate = buildCenteredMobileSnake(chain, width, height, square, gap, margin, run, drop);
+        if (isBetterMobileSnake(candidate, best)) best = candidate;
+        if (candidate.overflow <= 0) return candidate;
       }
-      if (candidate.overflow <= 0) return candidate;
     }
   }
 
-  return best || buildCenteredMobileSnake(chain, width, height, minSquare, 1, margin, 3);
+  return best || buildCenteredMobileSnake(chain, width, height, minSquare, 2, margin, 3, 3);
 }
 
-function buildCenteredMobileSnake(chain, width, height, square, gap, margin, runLength) {
+function isBetterMobileSnake(candidate, best) {
+  if (!best) return true;
+  if (candidate.overflow !== best.overflow) return candidate.overflow < best.overflow;
+  if (candidate.square !== best.square) return candidate.square > best.square;
+  return candidate.runLength > best.runLength;
+}
+
+function buildCenteredMobileSnake(chain, width, height, square, gap, margin, runLength, dropLength) {
+  const directions = createMobileSnakeDirections(chain.length, runLength, dropLength);
   const layout = [];
   let x = 0;
   let y = 0;
-  let horizontal = "R";
-  let inRow = 0;
-  let direction = horizontal;
+  let direction = "R";
 
   for (let index = 0; index < chain.length; index += 1) {
     if (index > 0) {
-      if (inRow >= runLength) {
-        direction = "D";
-        inRow = 0;
-      } else {
-        direction = horizontal;
-      }
-
+      direction = directions[index - 1];
       const previous = layout[index - 1];
       const orientation = direction === "D" || direction === "U" ? "vertical" : "horizontal";
       const step = centerStep(previous.orientation, orientation, direction, square, gap);
       const unit = directionUnit(direction);
       x += unit.x * step;
       y += unit.y * step;
-
-      if (direction === "D") {
-        horizontal = horizontal === "R" ? "L" : "R";
-      } else {
-        inRow += 1;
-      }
-    } else {
-      inRow = 1;
     }
 
     const placement = chain[index];
@@ -647,8 +632,27 @@ function buildCenteredMobileSnake(chain, width, height, square, gap, margin, run
     layout,
     square,
     gap,
+    runLength,
+    dropLength,
     overflow: boardOverflow(layout, width, height, square, margin)
   };
+}
+
+function createMobileSnakeDirections(tileCount, runLength, dropLength) {
+  const directions = [];
+  let horizontal = "R";
+
+  while (directions.length < tileCount - 1) {
+    for (let i = 0; i < runLength && directions.length < tileCount - 1; i += 1) {
+      directions.push(horizontal);
+    }
+    for (let i = 0; i < dropLength && directions.length < tileCount - 1; i += 1) {
+      directions.push("D");
+    }
+    horizontal = horizontal === "R" ? "L" : "R";
+  }
+
+  return directions;
 }
 
 function centerStep(previousOrientation, nextOrientation, direction, square, gap) {
@@ -1031,7 +1035,7 @@ function roundPointInfo(result) {
 function createDomino(tile, options = {}) {
   const node = document.createElement("button");
   node.type = "button";
-  node.className = "domino";
+  node.className = "domino asset-domino";
   if (options.horizontal) node.classList.add("horizontal");
   if (options.vertical) node.classList.add("vertical");
   if (options.playable) node.classList.add("playable");
@@ -1039,29 +1043,29 @@ function createDomino(tile, options = {}) {
   if (!options.playable && !options.horizontal && !options.vertical) node.classList.add("locked");
   node.dataset.tileId = tile.id;
   node.ariaLabel = `Domino ${tile.a} ${tile.b}`;
+  node.style.setProperty("--asset-rotation", `${dominoAssetRotation(tile, options)}deg`);
 
-  const left = document.createElement("div");
-  left.className = "half";
-  left.appendChild(createPipGrid(tile.a));
-  const divider = document.createElement("div");
-  divider.className = "divider";
-  const right = document.createElement("div");
-  right.className = "half";
-  right.appendChild(createPipGrid(tile.b));
-  node.append(left, divider, right);
+  const image = document.createElement("img");
+  image.className = "domino-img";
+  image.src = dominoAssetSrc(tile);
+  image.alt = "";
+  image.draggable = false;
+  node.appendChild(image);
   return node;
 }
 
-function createPipGrid(value) {
-  const grid = document.createElement("div");
-  grid.className = "pip-grid";
-  const positions = new Set(PIP_POSITIONS[value] || []);
-  for (let i = 0; i < 9; i += 1) {
-    const cell = document.createElement("span");
-    if (positions.has(i)) cell.className = "pip";
-    grid.appendChild(cell);
-  }
-  return grid;
+function dominoAssetSrc(tile) {
+  const high = Math.max(tile.a, tile.b);
+  const low = Math.min(tile.a, tile.b);
+  return `${DOMINO_ASSET_DIR}/domino_${high}_${low}.svg`;
+}
+
+function dominoAssetRotation(tile, options = {}) {
+  const high = Math.max(tile.a, tile.b);
+  const firstValueIsHigh = tile.a === high;
+  if (options.horizontal) return firstValueIsHigh ? -90 : 90;
+  if (options.vertical) return firstValueIsHigh ? 0 : 180;
+  return 0;
 }
 
 async function copyInvite() {
