@@ -773,16 +773,19 @@ h1 {
 }
 
 .domino {
+  --domino-border: #17110d;
+  --domino-accent: rgba(126, 18, 18, 0.72);
   --tile-w: 64px;
   --tile-h: 116px;
   flex: 0 0 auto;
   width: var(--tile-w);
   height: var(--tile-h);
   padding: 0;
-  border: 1px solid var(--card-edge);
+  border: 2px solid var(--domino-border);
   border-radius: 0.7rem;
   overflow: hidden;
   color: #111;
+  position: relative;
   background:
     radial-gradient(circle at 28% 12%, rgba(255, 255, 255, 0.9), transparent 17%),
     linear-gradient(145deg, #fffaf0, var(--card));
@@ -793,6 +796,16 @@ h1 {
   animation: tileIn 280ms ease both;
 }
 
+.domino::before {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  z-index: 2;
+  border: 1px solid var(--domino-accent);
+  border-radius: calc(0.7rem - 4px);
+  pointer-events: none;
+}
+
 .domino.horizontal {
   --tile-w: 92px;
   --tile-h: 46px;
@@ -801,12 +814,16 @@ h1 {
 }
 
 .domino.playable {
+  --domino-border: #9f1d1d;
+  --domino-accent: #dc352d;
   cursor: pointer;
   box-shadow: 0 14px 26px rgba(0, 0, 0, 0.3), 0 0 0 2px rgba(126, 226, 168, 0.72);
 }
 
 .domino.playable:hover,
 .domino.selected {
+  --domino-border: #d62525;
+  --domino-accent: #400808;
   transform: translateY(-8px);
   box-shadow: 0 22px 36px rgba(0, 0, 0, 0.34), 0 0 0 3px rgba(248, 200, 106, 0.9);
 }
@@ -1016,12 +1033,25 @@ h1 {
 
 @media (max-width: 760px) {
   .app-shell {
-    padding: 0.45rem;
+    padding: 0.38rem;
   }
 
   .topbar {
     align-items: flex-start;
     flex-direction: column;
+    gap: 0.55rem;
+    padding: 0.72rem;
+    border-radius: 0.85rem;
+  }
+
+  .topbar h2 {
+    font-size: 1.15rem;
+    line-height: 1.05;
+  }
+
+  .eyebrow,
+  .panel-label {
+    font-size: 0.62rem;
   }
 
   .scoreboard,
@@ -1029,40 +1059,139 @@ h1 {
     width: 100%;
   }
 
+  .scoreboard {
+    gap: 0.45rem;
+  }
+
+  .score-card {
+    min-width: 0;
+    padding: 0.62rem 0.72rem;
+    border-radius: 0.72rem;
+  }
+
+  .score-card span {
+    font-size: 0.68rem;
+  }
+
+  .score-card strong {
+    font-size: 0.8rem;
+  }
+
   .side-panel {
     grid-template-columns: 1fr;
+    gap: 0.45rem;
+  }
+
+  .panel-card {
+    padding: 0.62rem;
+    border-radius: 0.75rem;
   }
 
   .felt-table {
-    min-height: 58vh;
+    height: clamp(390px, 62vh, 560px);
+    min-height: 390px;
     border-radius: 1.2rem;
   }
 
+  .felt-table::before {
+    inset: 4.7rem 0.78rem 5.7rem;
+    border-radius: 1.1rem;
+  }
+
   .seat {
-    min-width: 112px;
-    padding: 0.55rem;
+    min-width: 0;
+    width: min(32vw, 118px);
+    gap: 0.18rem;
+    padding: 0.42rem;
+    border-radius: 0.72rem;
+  }
+
+  .seat-name {
+    max-width: 100%;
+    font-size: 0.66rem;
+    line-height: 1.14;
+    text-align: center;
+    overflow-wrap: anywhere;
+  }
+
+  .seat-meta {
+    font-size: 0.62rem;
+    line-height: 1.15;
   }
 
   .seat-left,
   .seat-right {
-    top: 48%;
+    top: 50%;
+    width: min(25vw, 94px);
+  }
+
+  .seat-left {
+    left: 0.42rem;
+  }
+
+  .seat-right {
+    right: 0.42rem;
+  }
+
+  .seat-top,
+  .seat-bottom {
+    width: min(56vw, 190px);
+  }
+
+  .seat-top {
+    top: 0.62rem;
+  }
+
+  .seat-bottom {
+    bottom: 0.62rem;
+  }
+
+  .mini-hand,
+  .mini-hand.vertical {
+    display: flex;
+    min-width: 0;
+    min-height: 0;
+    max-width: none;
+    max-height: none;
+    padding: 0;
+    background: transparent;
+  }
+
+  .mini-card {
+    display: none;
+  }
+
+  .mini-count,
+  .mini-hand.vertical .mini-count {
+    position: static;
+    min-width: 1.15rem;
+    height: 1.15rem;
+    transform: none;
+    font-size: 0.64rem;
   }
 
   .board-zone {
-    inset: 122px 26px 112px;
+    inset: 5.55rem 0.9rem 6.2rem;
   }
 
   .endpoint {
-    width: 32px;
-    height: 14px;
+    width: 24px;
+    height: 12px;
   }
 
   .endpoint.left {
-    left: -26px;
+    left: -20px;
   }
 
   .endpoint.right {
-    right: -26px;
+    right: -20px;
+  }
+
+  .board-empty {
+    padding: 0 0.4rem;
+    font-size: 0.66rem;
+    line-height: 1.35;
+    letter-spacing: 0.04em;
   }
 
   .board-domino {
@@ -1100,14 +1229,75 @@ h1 {
 
   .action-strip {
     align-items: stretch;
+    gap: 0.5rem;
+  }
+
+  #turnHint {
+    font-size: 0.8rem;
+    line-height: 1.25;
+  }
+
+  .play-actions {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    width: 100%;
+    gap: 0.42rem;
   }
 
   .play-actions button {
-    flex: 1 1 44%;
+    min-width: 0;
+    padding: 0.62rem 0.34rem;
+    border-radius: 0.72rem;
+    font-size: 0.72rem;
+    line-height: 1.1;
+  }
+
+  .hand-dock {
+    position: sticky;
+    bottom: 0;
+    z-index: 200;
+    padding: 0.55rem;
+    border-radius: 0.85rem 0.85rem 0 0;
+  }
+
+  .player-hand {
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    gap: 0.48rem;
+    min-height: 104px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 0.72rem 0.12rem 0.38rem;
+    scroll-snap-type: x proximity;
+  }
+
+  .player-hand .domino {
+    scroll-snap-align: center;
   }
 
   .domino {
-    --tile-w: 58px;
-    --tile-h: 104px;
+    --tile-w: 52px;
+    --tile-h: 94px;
+    border-radius: 0.55rem;
+  }
+
+  .domino::before {
+    inset: 3px;
+    border-radius: calc(0.55rem - 3px);
+  }
+
+  .domino.horizontal {
+    --tile-w: 74px;
+    --tile-h: 38px;
+  }
+
+  .pip {
+    width: 6px;
+    height: 6px;
+  }
+
+  .domino.horizontal .pip {
+    width: 4px;
+    height: 4px;
   }
 }
