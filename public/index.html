@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Domino Gaple 2v2 Online</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="hero-panel" id="lobbyPanel">
+        <div class="brand-mark">
+          <span class="brand-dot"></span>
+          <span>Gaple Arena</span>
+        </div>
+        <h1>Domino Gaple 2 vs 2 Online</h1>
+        <p class="hero-copy">
+          Server-authoritative, tim berseberangan, bot strategis, dan scoring lomba Gaple Indonesia.
+        </p>
+
+        <div class="lobby-card">
+          <label>
+            Nama pemain
+            <input id="playerName" maxlength="24" autocomplete="name" placeholder="Player Utama">
+          </label>
+          <label>
+            Kode room
+            <input id="roomCode" maxlength="8" placeholder="contoh: A1B2C3">
+          </label>
+          <div class="lobby-actions">
+            <button class="primary" id="createRoomBtn">Buat Room</button>
+            <button id="joinRoomBtn">Join Partner</button>
+          </div>
+          <p class="hint">
+            Seat 0 adalah pemain utama. Seat 2 adalah partner di atas meja. Seat 1 dan 3 diisi bot.
+          </p>
+        </div>
+      </section>
+
+      <section class="game-shell hidden" id="gamePanel">
+        <header class="topbar">
+          <div>
+            <div class="eyebrow">Room <strong id="roomBadge">-</strong></div>
+            <h2 id="statusTitle">Menunggu room</h2>
+          </div>
+          <div class="scoreboard" aria-label="Scoreboard">
+            <div class="score-card team-a">
+              <span>Team A</span>
+              <strong id="scoreA">0 besar - 0 kecil</strong>
+            </div>
+            <div class="score-card team-b">
+              <span>Team B</span>
+              <strong id="scoreB">0 besar - 0 kecil</strong>
+            </div>
+          </div>
+        </header>
+
+        <div class="table-wrap">
+          <aside class="side-panel">
+            <div class="panel-card">
+              <span class="panel-label">Aturan aktif</span>
+              <strong id="ruleHint">Belum mulai</strong>
+            </div>
+            <div class="panel-card">
+              <span class="panel-label">Tracker angka keluar</span>
+              <div class="number-track" id="numberTracker"></div>
+            </div>
+            <div class="panel-card">
+              <span class="panel-label">Log permainan</span>
+              <div class="game-log" id="gameLog"></div>
+            </div>
+          </aside>
+
+          <section class="felt-table" aria-label="Meja Domino Gaple">
+            <div class="deal-layer" id="dealLayer"></div>
+
+            <div class="seat seat-top" data-seat="2">
+              <div class="seat-name" id="seat2Name">Partner</div>
+              <div class="seat-meta" id="seat2Meta">0 kartu</div>
+              <div class="mini-hand" id="seat2Mini"></div>
+            </div>
+
+            <div class="seat seat-left" data-seat="3">
+              <div class="seat-name" id="seat3Name">Bot Kiri</div>
+              <div class="seat-meta" id="seat3Meta">0 kartu</div>
+              <div class="mini-hand vertical" id="seat3Mini"></div>
+            </div>
+
+            <div class="board-zone">
+              <div class="endpoint left" id="leftEndpoint">-</div>
+              <div class="board-scroll" id="boardChain"></div>
+              <div class="endpoint right" id="rightEndpoint">-</div>
+            </div>
+
+            <div class="round-banner hidden" id="roundBanner">
+              <span id="roundBannerTitle">Ronde selesai</span>
+              <strong id="roundBannerPoints">0</strong>
+              <small id="roundBannerDetail">Total poin kalah</small>
+            </div>
+
+            <div class="round-reveal hidden" id="roundReveal">
+              <div class="reveal-header">
+                <span id="revealTitle">Kartu Tim Kalah</span>
+                <strong id="revealTotal">0 poin</strong>
+                <small id="revealSubtitle">Menghitung sisa kartu...</small>
+              </div>
+              <div class="reveal-seats" id="revealSeats"></div>
+            </div>
+
+            <div class="seat seat-right" data-seat="1">
+              <div class="seat-name" id="seat1Name">Bot Kanan</div>
+              <div class="seat-meta" id="seat1Meta">0 kartu</div>
+              <div class="mini-hand vertical" id="seat1Mini"></div>
+            </div>
+
+            <div class="seat seat-bottom" data-seat="0">
+              <div class="seat-name" id="seat0Name">User</div>
+              <div class="seat-meta" id="seat0Meta">0 kartu</div>
+              <div class="mini-hand" id="seat0Mini"></div>
+            </div>
+          </section>
+        </div>
+
+        <section class="hand-dock">
+          <div class="action-strip">
+            <div>
+              <span class="panel-label">Tangan kamu</span>
+              <strong id="turnHint">Menunggu giliran</strong>
+            </div>
+            <div class="play-actions">
+              <button id="copyInviteBtn">Copy Invite</button>
+              <button id="startBtn" class="primary">Mulai</button>
+              <button id="startSoloBtn">Solo + AI Partner</button>
+              <button id="placeLeftBtn" class="place-choice" disabled>Taruh Kiri</button>
+              <button id="placeRightBtn" class="place-choice" disabled>Taruh Kanan</button>
+              <button id="passBtn" class="danger" disabled>PASS</button>
+            </div>
+          </div>
+          <div class="player-hand" id="playerHand"></div>
+        </section>
+      </section>
+
+      <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    </main>
+
+    <script src="/config.js"></script>
+    <script src="/app.js" defer></script>
+  </body>
+</html>
