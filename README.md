@@ -76,11 +76,11 @@ Catatan: room/game state masih disimpan di memory backend. Pakai satu instance b
 ## Room dan Seat
 
 - Seat 0: pemain utama, Team A, posisi bawah.
-- Seat 1: Bot Kanan, Team B.
+- Seat 1: pemain Team B, posisi kanan.
 - Seat 2: partner, Team A, posisi atas.
-- Seat 3: Bot Kiri, Team B.
+- Seat 3: pemain Team B, posisi kiri.
 
-Untuk main cepat, buat room lalu klik `Solo + AI Partner`. Untuk 2 manusia, player pertama buat room dan partner join memakai link invite.
+Pemain bisa join ke Team A atau Team B. Satu room bisa diisi sampai 4 player manusia. Kalau game dimulai sebelum semua seat penuh, seat kosong otomatis diisi bot.
 
 Tombol `Keluar` bisa dipakai saat menunggu, saat game berjalan, setelah ronde selesai, atau setelah game selesai. Kalau player keluar saat game masih berjalan, seat-nya otomatis diambil alih bot supaya room tidak macet.
 

@@ -14,6 +14,11 @@ const PUBLIC_DIR = path.join(__dirname, "..", "public");
 const BOT_DELAY_MS = Number(process.env.BOT_DELAY_MS || 1500);
 const NEXT_ROUND_DELAY_MS = Number(process.env.NEXT_ROUND_DELAY_MS || 5600);
 const ALLOWED_ORIGINS = parseAllowedOrigins(process.env.ALLOWED_ORIGINS || "*");
+const TEAM_SEATS = {
+  A: [0, 2],
+  B: [1, 3]
+};
+const BOT_NAMES_BY_SEAT = ["Bot Bawah", "Bot Kanan", "Bot Atas", "Bot Kiri"];
 
 const rooms = new Map();
 
@@ -200,8 +205,6 @@ function createRoom() {
   } while (rooms.has(id));
 
   const game = engine.createGameState(id, `${id}:${Date.now()}`);
-  engine.setSeat(game, 1, { name: "Bot Kanan", type: "bot", connected: true });
-  engine.setSeat(game, 3, { name: "Bot Kiri", type: "bot", connected: true });
 
   const room = {
     id,
@@ -220,26 +223,30 @@ function joinRoom(room, body = {}) {
     throw httpError(409, "GAME_ALREADY_STARTED", "Game sudah dimulai.");
   }
 
+  const team = normalizeTeam(body.team);
   const preferredSeat = Number(body.preferredSeat);
   let seat = Number.isInteger(preferredSeat)
-    && [0, 2].includes(preferredSeat)
+    && preferredSeat >= 0
+    && preferredSeat <= 3
+    && (!team || engine.teamOfSeat(preferredSeat) === team)
     && room.game.seats[preferredSeat].type !== "human"
     ? preferredSeat
     : null;
 
   if (seat === null) {
-    seat = [0, 2].find((candidate) => room.game.seats[candidate].type !== "human");
+    const candidates = team ? TEAM_SEATS[team] : [0, 2, 1, 3];
+    seat = candidates.find((candidate) => room.game.seats[candidate].type !== "human");
   }
   if (!Number.isInteger(seat)) {
-    throw httpError(409, "ROOM_FULL", "Room sudah memiliki 2 pemain manusia.");
+    throw httpError(409, "TEAM_FULL", team ? `Team ${team} sudah penuh.` : "Room sudah penuh.");
   }
 
   const token = crypto.randomBytes(18).toString("base64url");
-  const name = cleanName(body.name || (seat === 0 ? "Player Utama" : "Partner"));
+  const name = cleanName(body.name || `Player Team ${engine.teamOfSeat(seat)}`);
   engine.setSeat(room.game, seat, { name, type: "human", connected: true });
   room.playersByToken.set(token, { token, seat, name });
-  engine.addLog(room.game, `${name} masuk sebagai Seat ${seat}.`, "room");
-  return { roomId: room.id, token, seat };
+  engine.addLog(room.game, `${name} masuk Team ${engine.teamOfSeat(seat)} sebagai Seat ${seat}.`, "room");
+  return { roomId: room.id, token, seat, team: engine.teamOfSeat(seat) };
 }
 
 function leaveRoom(room, token) {
@@ -255,7 +262,7 @@ function leaveRoom(room, token) {
 
   if (room.game.status === "waiting") {
     engine.setSeat(room.game, seat, {
-      name: previousSeat?.label || (seat === 0 ? "User" : "Partner"),
+      name: previousSeat?.label || `Seat ${seat}`,
       type: "open",
       connected: false
     });
@@ -281,23 +288,35 @@ function leaveRoom(room, token) {
 }
 
 function fillAiPartner(room) {
-  if (room.game.seats[2].type !== "human") {
-    engine.setSeat(room.game, 2, { name: "Partner AI", type: "bot", connected: true });
-    engine.addLog(room.game, "Seat 2 diisi Partner AI untuk mode solo.", "room");
-  }
+  fillOpenSeatsWithBots(room, "mode solo.");
 }
 
 function startRoom(room) {
   if (room.game.status !== "waiting") {
     return { ok: false, error: "ALREADY_STARTED", message: "Game sudah berjalan." };
   }
-  if (room.game.seats[0].type !== "human") {
-    return { ok: false, error: "NEED_USER", message: "Seat 0 harus diisi pemain utama." };
+  if (!room.game.seats.some((seat) => seat.type === "human")) {
+    return { ok: false, error: "NEED_USER", message: "Minimal satu pemain manusia harus join." };
   }
-  if (!["human", "bot"].includes(room.game.seats[2].type)) {
-    return { ok: false, error: "NEED_PARTNER", message: "Seat 2 belum diisi partner." };
-  }
+  fillOpenSeatsWithBots(room, "sebelum game dimulai.");
   return engine.startRound(room.game);
+}
+
+function fillOpenSeatsWithBots(room, reason) {
+  for (let seat = 0; seat < 4; seat += 1) {
+    if (room.game.seats[seat].type === "human" || room.game.seats[seat].type === "bot") continue;
+    engine.setSeat(room.game, seat, {
+      name: BOT_NAMES_BY_SEAT[seat],
+      type: "bot",
+      connected: true
+    });
+    engine.addLog(room.game, `Seat ${seat} diisi ${BOT_NAMES_BY_SEAT[seat]} ${reason}`, "room");
+  }
+}
+
+function normalizeTeam(team) {
+  const value = String(team || "").trim().toUpperCase();
+  return value === "A" || value === "B" ? value : null;
 }
 
 function startNextRound(room) {

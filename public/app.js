@@ -8,7 +8,8 @@ const els = {
   playerName: $("playerName"),
   roomCode: $("roomCode"),
   createRoomBtn: $("createRoomBtn"),
-  joinRoomBtn: $("joinRoomBtn"),
+  joinTeamABtn: $("joinTeamABtn"),
+  joinTeamBBtn: $("joinTeamBBtn"),
   roomBadge: $("roomBadge"),
   statusTitle: $("statusTitle"),
   dealLayer: $("dealLayer"),
@@ -75,7 +76,8 @@ function bootstrap() {
   }
 
   els.createRoomBtn.addEventListener("click", createAndJoinRoom);
-  els.joinRoomBtn.addEventListener("click", joinExistingRoom);
+  els.joinTeamABtn.addEventListener("click", () => joinExistingRoom("A"));
+  els.joinTeamBBtn.addEventListener("click", () => joinExistingRoom("B"));
   els.startBtn.addEventListener("click", () => startGame(false));
   els.startSoloBtn.addEventListener("click", () => startGame(true));
   els.copyInviteBtn.addEventListener("click", copyInvite);
@@ -104,30 +106,33 @@ async function createAndJoinRoom() {
   try {
     const created = await api("/api/rooms", { method: "POST", body: {} });
     app.roomId = created.roomId;
-    await joinRoom(created.roomId, 0);
-    toast(`Room ${created.roomId} dibuat. Bagikan invite kalau mau partner manusia.`);
+    await joinRoom(created.roomId, { team: "A", preferredSeat: 0 });
+    toast(`Room ${created.roomId} dibuat. Bagikan invite untuk 4 player.`);
   } catch (error) {
     toast(error.message || "Gagal membuat room.");
   }
 }
 
-async function joinExistingRoom() {
+async function joinExistingRoom(team) {
   const roomId = els.roomCode.value.trim().toUpperCase();
   if (!roomId) {
     toast("Isi kode room dulu.");
     return;
   }
   try {
-    await joinRoom(roomId, 2);
-    toast(`Masuk ke room ${roomId}.`);
+    await joinRoom(roomId, { team });
+    toast(`Masuk ke room ${roomId} sebagai Team ${team}.`);
   } catch (error) {
     toast(error.message || "Gagal join room.");
   }
 }
 
-async function joinRoom(roomId, preferredSeat) {
+async function joinRoom(roomId, options = {}) {
+  const team = options.team || null;
+  const preferredSeat = options.preferredSeat;
   const payload = {
-    name: els.playerName.value.trim() || (preferredSeat === 0 ? "Player Utama" : "Partner"),
+    name: els.playerName.value.trim() || (team ? `Player Team ${team}` : "Player"),
+    team,
     preferredSeat
   };
   const joined = await api(`/api/rooms/${roomId}/join`, { method: "POST", body: payload });
@@ -901,7 +906,8 @@ function renderControls(state) {
   els.passBtn.disabled = !isMyTurn;
 
   if (state.status === "waiting") {
-    els.turnHint.textContent = "Bagikan invite atau mulai dengan Partner AI.";
+    const humans = state.seats.filter((seat) => seat.type === "human").length;
+    els.turnHint.textContent = `${humans}/4 player. Bagikan invite, pilih Team A/B, atau mulai untuk isi seat kosong dengan bot.`;
   } else if (state.status === "roundOver") {
     els.turnHint.textContent = "Ronde selesai. Ronde berikutnya mulai otomatis.";
   } else if (state.status === "gameOver") {
