@@ -119,7 +119,13 @@ async function handleApi(req, res, url) {
   }
 
   const room = rooms.get(parts[2].toUpperCase());
-  if (!room) return sendJson(res, 404, { ok: false, error: "ROOM_NOT_FOUND" });
+  if (!room) {
+    return sendJson(res, 404, {
+      ok: false,
+      error: "ROOM_NOT_FOUND",
+      message: "Room tidak ditemukan. Buat room baru atau cek kode room."
+    });
+  }
 
   if (req.method === "GET" && parts.length === 3) {
     const token = url.searchParams.get("token");

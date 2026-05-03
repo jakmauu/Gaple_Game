@@ -7,6 +7,7 @@ const els = {
   gamePanel: $("gamePanel"),
   playerName: $("playerName"),
   roomCode: $("roomCode"),
+  inviteHint: $("inviteHint"),
   createRoomBtn: $("createRoomBtn"),
   joinTeamABtn: $("joinTeamABtn"),
   joinTeamBBtn: $("joinTeamBBtn"),
@@ -65,10 +66,14 @@ bootstrap();
 function bootstrap() {
   const params = new URLSearchParams(window.location.search);
   const roomFromUrl = params.get("room");
-  if (roomFromUrl) els.roomCode.value = roomFromUrl.toUpperCase();
+  const forceLobby = params.get("join") === "1";
+  if (roomFromUrl) {
+    els.roomCode.value = roomFromUrl.toUpperCase();
+    els.inviteHint.classList.remove("hidden");
+  }
 
   const saved = loadSession();
-  if (saved && (!roomFromUrl || saved.roomId === roomFromUrl.toUpperCase())) {
+  if (!forceLobby && saved && (!roomFromUrl || saved.roomId === roomFromUrl.toUpperCase())) {
     app.roomId = saved.roomId;
     app.token = saved.token;
     app.seat = saved.seat;
@@ -95,21 +100,17 @@ async function reconnectSavedSession() {
     connectEvents();
     render();
   } catch {
-    clearSession();
-    app.roomId = null;
-    app.token = null;
-    app.seat = null;
+    returnToLobby("Room sebelumnya sudah tidak aktif. Buat atau join room baru.");
   }
 }
 
 async function createAndJoinRoom() {
   try {
     const created = await api("/api/rooms", { method: "POST", body: {} });
-    app.roomId = created.roomId;
     await joinRoom(created.roomId, { team: "A", preferredSeat: 0 });
     toast(`Room ${created.roomId} dibuat. Bagikan invite untuk 4 player.`);
   } catch (error) {
-    toast(error.message || "Gagal membuat room.");
+    handleApiFailure(error, "Gagal membuat room.");
   }
 }
 
@@ -123,7 +124,7 @@ async function joinExistingRoom(team) {
     await joinRoom(roomId, { team });
     toast(`Masuk ke room ${roomId} sebagai Team ${team}.`);
   } catch (error) {
-    toast(error.message || "Gagal join room.");
+    handleApiFailure(error, "Gagal join room.");
   }
 }
 
@@ -148,6 +149,11 @@ async function joinRoom(roomId, options = {}) {
 }
 
 async function startGame(aiPartner) {
+  if (!app.roomId || !app.token) {
+    returnToLobby("Session room tidak valid. Buat atau join room dulu.");
+    return;
+  }
+
   try {
     const data = await api(`/api/rooms/${app.roomId}/start`, {
       method: "POST",
@@ -156,7 +162,7 @@ async function startGame(aiPartner) {
     app.state = data.state;
     render();
   } catch (error) {
-    toast(error.message || "Gagal mulai game.");
+    handleApiFailure(error, "Gagal mulai game.");
   }
 }
 
@@ -260,9 +266,26 @@ async function api(path, options = {}) {
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok || data.ok === false) {
-    throw new Error(data.message || data.error || `HTTP ${response.status}`);
+    const error = new Error(data.message || data.error || `HTTP ${response.status}`);
+    error.code = data.error;
+    error.status = response.status;
+    throw error;
   }
   return data;
+}
+
+function handleApiFailure(error, fallbackMessage) {
+  if (error?.code === "ROOM_NOT_FOUND") {
+    returnToLobby("Room tidak ditemukan atau sudah tidak aktif. Buat room baru.");
+    return;
+  }
+
+  if (error?.code === "BAD_TOKEN") {
+    returnToLobby("Session player tidak valid. Join room ulang.");
+    return;
+  }
+
+  toast(error?.message || fallbackMessage);
 }
 
 function apiUrl(path) {
@@ -1076,10 +1099,10 @@ function dominoAssetRotation(tile, options = {}) {
 
 async function copyInvite() {
   if (!app.roomId) return;
-  const url = `${window.location.origin}${window.location.pathname}?room=${encodeURIComponent(app.roomId)}`;
+  const url = `${window.location.origin}${window.location.pathname}?room=${encodeURIComponent(app.roomId)}&join=1`;
   try {
     await navigator.clipboard.writeText(url);
-    toast("Invite link disalin.");
+    toast("Link lobby disalin. Teman bisa pilih Team A atau Team B.");
   } catch {
     toast(url);
   }
@@ -1108,6 +1131,7 @@ function returnToLobby(message = "") {
   app.scoreHoldKey = null;
   app.scoreHoldUntil = 0;
   els.roomCode.value = "";
+  els.inviteHint.classList.add("hidden");
   els.gamePanel.classList.add("hidden");
   els.lobbyPanel.classList.remove("hidden");
   history.replaceState(null, "", window.location.pathname);
