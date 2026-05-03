@@ -621,6 +621,10 @@ h1 {
   --board-gap: 2px;
 }
 
+.board-scroll.micro .board-domino {
+  border-radius: 0.14rem;
+}
+
 .round-banner {
   position: absolute;
   right: 1.2rem;
@@ -770,6 +774,11 @@ h1 {
   overflow: visible;
   padding: 1rem 0.2rem 0.3rem;
   min-height: 132px;
+}
+
+.player-hand .domino {
+  --tile-w: var(--hand-tile-w, 64px);
+  --tile-h: var(--hand-tile-h, 116px);
 }
 
 .domino {
@@ -1060,6 +1069,8 @@ h1 {
   }
 
   .scoreboard {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 0.45rem;
   }
 
@@ -1201,6 +1212,7 @@ h1 {
   .board-scroll {
     --board-square: 30px;
     --board-gap: 2px;
+    overflow: hidden;
   }
 
   .board-scroll.compact .board-domino,
@@ -1216,6 +1228,11 @@ h1 {
   .board-scroll.dense {
     --board-square: 25px;
     --board-gap: 2px;
+  }
+
+  .board-scroll.micro {
+    --board-square: 20px;
+    --board-gap: 1px;
   }
 
   .reveal-seats {
@@ -1262,17 +1279,18 @@ h1 {
 
   .player-hand {
     flex-wrap: nowrap;
-    justify-content: flex-start;
-    gap: 0.48rem;
-    min-height: 104px;
-    overflow-x: auto;
+    justify-content: center;
+    gap: var(--hand-gap, 5px);
+    min-height: calc(var(--hand-tile-h, 94px) + 18px);
+    overflow-x: hidden;
     overflow-y: hidden;
     padding: 0.72rem 0.12rem 0.38rem;
-    scroll-snap-type: x proximity;
   }
 
   .player-hand .domino {
-    scroll-snap-align: center;
+    --tile-w: var(--hand-tile-w, 52px);
+    --tile-h: var(--hand-tile-h, 94px);
+    scroll-snap-align: none;
   }
 
   .domino {
@@ -1289,6 +1307,17 @@ h1 {
   .domino.horizontal {
     --tile-w: 74px;
     --tile-h: 38px;
+  }
+
+  .board-domino,
+  .board-domino.horizontal {
+    --tile-w: calc(var(--board-square) * 2);
+    --tile-h: var(--board-square);
+  }
+
+  .board-domino.vertical {
+    --tile-w: var(--board-square);
+    --tile-h: calc(var(--board-square) * 2);
   }
 
   .pip {

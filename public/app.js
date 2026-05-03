@@ -426,6 +426,8 @@ function renderBoard(state) {
   els.rightEndpoint.textContent = "";
   els.boardChain.replaceChildren();
   els.boardChain.classList.remove("compact", "dense", "micro");
+  els.boardChain.style.removeProperty("--board-square");
+  els.boardChain.style.removeProperty("--board-gap");
   els.boardChain.removeAttribute("data-drop-side");
 
   if (state.board.chain.length === 0) {
@@ -446,9 +448,6 @@ function renderBoard(state) {
   }
 
   els.boardChain.classList.remove("drop-target");
-
-  const count = state.board.chain.length;
-  if (count > 36) els.boardChain.classList.add("dense");
 
   const layout = calculateBoardLayout(state.board.chain, els.boardChain);
   for (const [index, placement] of state.board.chain.entries()) {
@@ -538,15 +537,36 @@ function boardSideForIndex(state, index) {
 function calculateBoardLayout(chain, container) {
   const width = container.clientWidth || 760;
   const height = container.clientHeight || 280;
+  const styles = getComputedStyle(container);
+  const cssSquare = parseFloat(styles.getPropertyValue("--board-square")) || 36;
+  const cssGap = parseFloat(styles.getPropertyValue("--board-gap")) || 2;
+  const narrow = width < 420 || window.matchMedia("(max-width: 760px)").matches;
+  const maxSquare = Math.min(cssSquare, narrow ? 30 : 42);
+  const minSquare = narrow ? 16 : 24;
+  const margin = narrow ? 5 : 10;
+  let best = null;
+
+  for (let square = maxSquare; square >= minSquare; square -= 1) {
+    const candidate = buildBoardLayout(chain, width, height, square, cssGap, margin, narrow);
+    if (!best || candidate.overflow < best.overflow) best = candidate;
+    if (candidate.overflow <= 0) break;
+  }
+
+  const result = best || buildBoardLayout(chain, width, height, minSquare, cssGap, margin, narrow);
+  container.style.setProperty("--board-square", `${result.square}px`);
+  container.style.setProperty("--board-gap", `${result.gap}px`);
+  container.classList.toggle("compact", result.square <= cssSquare * 0.9);
+  container.classList.toggle("dense", result.square <= cssSquare * 0.78);
+  container.classList.toggle("micro", result.square <= cssSquare * 0.64);
+  return result.layout;
+}
+
+function buildBoardLayout(chain, width, height, square, gap, margin, narrow) {
   const centerX = width / 2;
   const centerY = height / 2;
   const startIndex = Math.max(0, chain.findIndex((placement) => placement.side === "start"));
-  const styles = getComputedStyle(container);
-  const square = parseFloat(styles.getPropertyValue("--board-square")) || 36;
-  const gap = parseFloat(styles.getPropertyValue("--board-gap")) || 6;
-  const halfWidth = Math.max(square * 6, width / 2 - square * 2.1);
-  const perRun = Math.max(6, Math.min(11, Math.floor(halfWidth / ((square * 2) + gap))));
-  const verticalSpan = Math.max(2, Math.min(4, Math.round((height / square) / 7)));
+  const perRun = chooseSnakeRunLength(width, square, gap, margin, narrow);
+  const verticalSpan = narrow ? 1 : Math.max(1, Math.min(3, Math.floor(height / (square * 7))));
   const layout = new Array(chain.length);
 
   layout[startIndex] = {
@@ -563,14 +583,14 @@ function calculateBoardLayout(chain, container) {
   const leftIndexes = [];
   for (let index = startIndex - 1; index >= 0; index -= 1) leftIndexes.push(index);
 
-  const rightArm = placeArm(layout, chain, rightIndexes, {
+  placeArm(layout, chain, rightIndexes, {
     arm: "right",
     firstConnection: { x: centerX + square / 2, y: centerY },
     directions: createArmDirections("right", rightIndexes.length, perRun, verticalSpan),
     square,
     gap
   });
-  const leftArm = placeArm(layout, chain, leftIndexes, {
+  placeArm(layout, chain, leftIndexes, {
     arm: "left",
     firstConnection: { x: centerX - square / 2, y: centerY },
     directions: createArmDirections("left", leftIndexes.length, perRun, verticalSpan),
@@ -578,7 +598,65 @@ function calculateBoardLayout(chain, container) {
     gap
   });
 
-  return layout;
+  centerBoardLayout(layout, width, height, square);
+
+  return {
+    layout,
+    square,
+    gap,
+    overflow: boardOverflow(layout, width, height, square, margin)
+  };
+}
+
+function chooseSnakeRunLength(width, square, gap, margin, narrow) {
+  const availableHalf = width / 2 - margin;
+  const firstTileEdge = square * 2.5 + gap;
+  const extraSpace = availableHalf - firstTileEdge;
+  const extraTiles = extraSpace > 0 ? Math.floor(extraSpace / ((square * 2) + gap)) : 0;
+  const maxRun = narrow ? 3 : 10;
+  const minRun = narrow ? 1 : 2;
+  return Math.max(minRun, Math.min(maxRun, 1 + extraTiles));
+}
+
+function boardOverflow(layout, width, height, square, margin) {
+  const bounds = boardBounds(layout, square);
+  if (!Number.isFinite(bounds.minX)) return 0;
+  return Math.max(0, margin - bounds.minX)
+    + Math.max(0, bounds.maxX - (width - margin))
+    + Math.max(0, margin - bounds.minY)
+    + Math.max(0, bounds.maxY - (height - margin));
+}
+
+function centerBoardLayout(layout, width, height, square) {
+  const bounds = boardBounds(layout, square);
+  if (!Number.isFinite(bounds.minX)) return;
+
+  const offsetX = width / 2 - (bounds.minX + bounds.maxX) / 2;
+  const offsetY = height / 2 - (bounds.minY + bounds.maxY) / 2;
+  for (const item of layout) {
+    if (!item) continue;
+    item.x += offsetX;
+    item.y += offsetY;
+  }
+}
+
+function boardBounds(layout, square) {
+  return layout.reduce((box, item) => {
+    if (!item) return box;
+    const horizontal = item.orientation === "horizontal";
+    const halfWidth = horizontal ? square : square / 2;
+    const halfHeight = horizontal ? square / 2 : square;
+    box.minX = Math.min(box.minX, item.x - halfWidth);
+    box.maxX = Math.max(box.maxX, item.x + halfWidth);
+    box.minY = Math.min(box.minY, item.y - halfHeight);
+    box.maxY = Math.max(box.maxY, item.y + halfHeight);
+    return box;
+  }, {
+    minX: Infinity,
+    maxX: -Infinity,
+    minY: Infinity,
+    maxY: -Infinity
+  });
 }
 
 function createArmDirections(arm, count, perRun, verticalSpan) {
@@ -651,6 +729,7 @@ function visualValuesForDirection(placement, arm, direction) {
 
 function renderHand(state) {
   els.playerHand.replaceChildren();
+  configureHandScale(state.hand?.length || 0);
   if (!Number.isInteger(state.viewerSeat)) return;
 
   for (const tile of state.hand) {
@@ -663,6 +742,22 @@ function renderHand(state) {
     });
     els.playerHand.appendChild(tileNode);
   }
+}
+
+function configureHandScale(count) {
+  const handCount = Math.max(1, count);
+  const mobile = window.matchMedia("(max-width: 760px)").matches;
+  const gap = mobile ? 5 : 10;
+  const available = Math.max(180, els.playerHand.clientWidth || window.innerWidth) - 8;
+  const maxWidth = mobile ? 52 : 64;
+  const minWidth = mobile ? 28 : 48;
+  const fittedWidth = Math.floor((available - gap * (handCount - 1)) / handCount);
+  const tileWidth = Math.max(minWidth, Math.min(maxWidth, fittedWidth));
+
+  els.playerHand.style.setProperty("--hand-count", handCount);
+  els.playerHand.style.setProperty("--hand-gap", `${gap}px`);
+  els.playerHand.style.setProperty("--hand-tile-w", `${tileWidth}px`);
+  els.playerHand.style.setProperty("--hand-tile-h", `${Math.round(tileWidth * 1.82)}px`);
 }
 
 function selectTile(tile, playable) {
