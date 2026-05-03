@@ -541,6 +541,17 @@ function calculateBoardLayout(chain, container) {
   const cssSquare = parseFloat(styles.getPropertyValue("--board-square")) || 36;
   const cssGap = parseFloat(styles.getPropertyValue("--board-gap")) || 2;
   const narrow = width < 420 || window.matchMedia("(max-width: 760px)").matches;
+
+  if (narrow) {
+    const result = calculateMobileSnakeLayout(chain, width, height, cssSquare, cssGap);
+    container.style.setProperty("--board-square", `${result.square}px`);
+    container.style.setProperty("--board-gap", `${result.gap}px`);
+    container.classList.toggle("compact", result.square <= cssSquare * 0.9);
+    container.classList.toggle("dense", result.square <= cssSquare * 0.75);
+    container.classList.toggle("micro", result.square <= cssSquare * 0.58);
+    return result.layout;
+  }
+
   const maxSquare = Math.min(cssSquare, narrow ? 30 : 42);
   const minSquare = narrow ? 16 : 24;
   const margin = narrow ? 5 : 10;
@@ -559,6 +570,102 @@ function calculateBoardLayout(chain, container) {
   container.classList.toggle("dense", result.square <= cssSquare * 0.78);
   container.classList.toggle("micro", result.square <= cssSquare * 0.64);
   return result.layout;
+}
+
+function calculateMobileSnakeLayout(chain, width, height, cssSquare, cssGap) {
+  const maxSquare = Math.min(cssSquare, 26);
+  const minSquare = 10;
+  const margin = 6;
+  let best = null;
+
+  for (let square = maxSquare; square >= minSquare; square -= 1) {
+    const maxRun = Math.max(3, Math.floor((width - margin * 2 + cssGap) / ((square * 2) + cssGap)));
+    for (let run = Math.min(9, maxRun); run >= 3; run -= 1) {
+      const candidate = buildCenteredMobileSnake(chain, width, height, square, cssGap, margin, run);
+      if (!best || candidate.overflow < best.overflow || (candidate.overflow === best.overflow && candidate.square > best.square)) {
+        best = candidate;
+      }
+      if (candidate.overflow <= 0) return candidate;
+    }
+  }
+
+  return best || buildCenteredMobileSnake(chain, width, height, minSquare, 1, margin, 3);
+}
+
+function buildCenteredMobileSnake(chain, width, height, square, gap, margin, runLength) {
+  const layout = [];
+  let x = 0;
+  let y = 0;
+  let horizontal = "R";
+  let inRow = 0;
+  let direction = horizontal;
+
+  for (let index = 0; index < chain.length; index += 1) {
+    if (index > 0) {
+      if (inRow >= runLength) {
+        direction = "D";
+        inRow = 0;
+      } else {
+        direction = horizontal;
+      }
+
+      const previous = layout[index - 1];
+      const orientation = direction === "D" || direction === "U" ? "vertical" : "horizontal";
+      const step = centerStep(previous.orientation, orientation, direction, square, gap);
+      const unit = directionUnit(direction);
+      x += unit.x * step;
+      y += unit.y * step;
+
+      if (direction === "D") {
+        horizontal = horizontal === "R" ? "L" : "R";
+      } else {
+        inRow += 1;
+      }
+    } else {
+      inRow = 1;
+    }
+
+    const placement = chain[index];
+    const baseOrientation = direction === "D" || direction === "U" ? "vertical" : "horizontal";
+    const orientation = placement.tile.double
+      ? (baseOrientation === "horizontal" ? "vertical" : "horizontal")
+      : baseOrientation;
+    const visual = snakeVisualValues(placement, direction);
+    layout[index] = {
+      x,
+      y,
+      z: 80 - index,
+      orientation,
+      a: visual.a,
+      b: visual.b
+    };
+  }
+
+  centerBoardLayout(layout, width, height, square);
+
+  return {
+    layout,
+    square,
+    gap,
+    overflow: boardOverflow(layout, width, height, square, margin)
+  };
+}
+
+function centerStep(previousOrientation, nextOrientation, direction, square, gap) {
+  const previousHalf = direction === "R" || direction === "L"
+    ? (previousOrientation === "horizontal" ? square : square / 2)
+    : (previousOrientation === "vertical" ? square : square / 2);
+  const nextHalf = direction === "R" || direction === "L"
+    ? (nextOrientation === "horizontal" ? square : square / 2)
+    : (nextOrientation === "vertical" ? square : square / 2);
+  return previousHalf + nextHalf + gap;
+}
+
+function snakeVisualValues(placement, direction) {
+  if (direction === "L" || direction === "U") {
+    return { a: placement.rightValue, b: placement.leftValue };
+  }
+  return { a: placement.leftValue, b: placement.rightValue };
 }
 
 function buildBoardLayout(chain, width, height, square, gap, margin, narrow) {
